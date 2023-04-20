@@ -63,6 +63,7 @@
 #define CH341_REG_DIVISOR      0x13
 #define CH341_REG_LCR          0x18
 #define CH341_REG_LCR2         0x25
+#define CH341_REG_RTSCTS       0x27
 
 #define CH341_NBREAK_BITS      0x01
 
@@ -488,6 +489,7 @@ static void ch341_set_termios(struct tty_struct *tty,
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	unsigned baud_rate;
 	unsigned long flags;
+	bool hw_flow;
 	u8 lcr;
 	int r;
 
@@ -546,6 +548,20 @@ static void ch341_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	ch341_set_handshake(port->serial->dev, priv->mcr);
+
+	hw_flow = C_CRTSCTS(tty) && C_BAUD(tty) != B0;
+	if (!old_termios ||
+			hw_flow != ((old_termios->c_cflag & CRTSCTS) &&
+				(old_termios->c_cflag & CBAUD) != B0)) {
+		r = ch341_control_out(port->serial->dev, CH341_REQ_WRITE_REG,
+				CH341_REG_RTSCTS << 8 | CH341_REG_RTSCTS,
+				hw_flow ? 0x0101 : 0x0000);
+		if (r < 0) {
+			tty->termios.c_cflag &= ~CRTSCTS;
+			if (old_termios)
+				tty->termios.c_cflag |= old_termios->c_cflag & CRTSCTS;
+		}
+	}
 }
 
 /*
