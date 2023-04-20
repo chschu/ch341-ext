@@ -870,4 +870,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 module_usb_serial_driver(serial_drivers, id_table);
 
+MODULE_VERSION("6.2-ext");
+
 MODULE_LICENSE("GPL v2");
